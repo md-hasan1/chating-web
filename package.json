@@ -1,0 +1,36 @@
+{
+  "name": "chat-web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"next dev\" \"cd server && npm run dev\"",
+    "dev:frontend": "next dev",
+    "dev:backend": "cd server && npm run dev",
+    "build": "next build",
+    "build:backend": "cd server && npm run build",
+    "start": "next start",
+    "start:backend": "cd server && npm run start",
+    "lint": "eslint",
+    "setup": "npm install && cd server && npm install"
+  },
+  "dependencies": {
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "axios": "^1.6.0",
+    "@react-oauth/google": "^0.12.1",
+    "jwt-decode": "^4.0.0",
+    "socket.io-client": "^4.7.2"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

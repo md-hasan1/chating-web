@@ -1,0 +1,66 @@
+// prisma/schema.prisma
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  email     String     @unique
+  name      String?
+  age       Int?
+  image     String?
+  password  String?
+  lastActiveAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  messages  Message[]
+  chats     Chat[]
+  sentRequests     FriendRequest[] @relation("SentRequests")
+  receivedRequests FriendRequest[] @relation("ReceivedRequests")
+}
+
+model Chat {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  isDirect  Boolean    @default(false)
+  userId    String     @db.ObjectId
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  participantIds String[] @default([]) @db.ObjectId
+  hiddenForUserIds String[] @default([]) @db.ObjectId
+  messages  Message[]
+}
+
+model Message {
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  role      String     @default("user") // "user" or "assistant"
+  createdAt DateTime   @default(now())
+  chatId    String     @db.ObjectId
+  chat      Chat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId    String     @db.ObjectId
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deletedForUserIds String[] @default([]) @db.ObjectId
+  deletedForEveryone Boolean @default(false)
+  deliveredAt DateTime?
+  seenAt      DateTime?
+}
+
+model FriendRequest {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  senderId   String   @db.ObjectId
+  sender     User     @relation("SentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId String   @db.ObjectId
+  receiver   User     @relation("ReceivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+  status     String   @default("pending") // "pending" | "accepted" | "rejected"
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([senderId, receiverId])
+}
