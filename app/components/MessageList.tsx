@@ -94,8 +94,50 @@ export default function MessageList({ messages, isLoading, currentUserId, onDele
                       : 'bg-gray-200 text-gray-900 rounded-bl-none'
                   }`}
                 >
-                  <p className="text-sm pr-6">{message.content}</p>
-                  <span className="text-xs opacity-70">
+                  {message.fileUrl ? (
+                    <div className="space-y-2 mb-1">
+                      {message.fileType === 'image' && (
+                        <div className="relative group overflow-hidden rounded-md">
+                          <img
+                            src={message.fileUrl}
+                            alt={message.content || 'Image'}
+                            className="max-h-60 max-w-full rounded-md object-contain cursor-pointer hover:scale-[1.02] transition-transform duration-200"
+                            onClick={() => window.open(message.fileUrl, '_blank')}
+                          />
+                        </div>
+                      )}
+                      {message.fileType === 'video' && (
+                        <video
+                          src={message.fileUrl}
+                          controls
+                          className="max-h-60 max-w-full rounded-md"
+                        />
+                      )}
+                      {message.fileType !== 'image' && message.fileType !== 'video' && (
+                        <a
+                          href={message.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`flex items-center space-x-2 p-3 rounded-lg border transition-all ${
+                            isOwnMessage
+                              ? 'bg-blue-600 border-blue-400 text-white hover:bg-blue-700'
+                              : 'bg-white border-gray-300 text-gray-800 hover:bg-gray-50'
+                          }`}
+                        >
+                          <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <div className="overflow-hidden">
+                            <p className="text-sm font-semibold truncate max-w-[180px]">{message.content}</p>
+                            <p className="text-[10px] opacity-75">Click to download</p>
+                          </div>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm pr-6 break-words whitespace-pre-wrap">{message.content}</p>
+                  )}
+                  <span className="text-[10px] opacity-70 block text-right mt-1">
                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>

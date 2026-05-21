@@ -18,6 +18,8 @@ export interface Message {
   deletedForEveryone?: boolean;
   deliveredAt?: string;
   seenAt?: string;
+  fileUrl?: string;
+  fileType?: string;
 }
 
 export interface Chat {
@@ -52,6 +54,7 @@ interface ChatContextType {
   startDirectChat: (targetUserId: string) => Promise<Chat>;
   selectChat: (chatId: string) => Promise<void>;
   addMessage: (content: string, role: 'user' | 'assistant') => Promise<Message>;
+  uploadFile: (file: File) => Promise<Message>;
   deleteChat: (chatId: string) => Promise<void>;
   deleteMessage: (messageId: string, scope: 'me' | 'everyone') => Promise<void>;
   clearUnread: (chatId: string) => void;
@@ -505,6 +508,101 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token, isGuest, currentChat, socket, user?.id]);
 
+  const uploadFile = useCallback(async (file: File): Promise<Message> => {
+    if (!currentChat) throw new Error('No active chat');
+
+    const clientMessageId = 'client-' + Date.now();
+    
+    // Determine file type local preview for optimistic UI
+    let fileType = 'file';
+    if (file.type.startsWith('image/')) {
+      fileType = 'image';
+    } else if (file.type.startsWith('video/')) {
+      fileType = 'video';
+    }
+
+    const localUrl = URL.createObjectURL(file);
+
+    // Create optimistic message
+    const optimisticMessage: Message = {
+      id: clientMessageId,
+      content: file.name,
+      role: 'user',
+      createdAt: new Date().toISOString(),
+      chatId: currentChat.id,
+      userId: user?.id || 'guest',
+      clientMessageId,
+      fileUrl: localUrl,
+      fileType
+    };
+
+    // Optimistically update local state
+    setCurrentChat(prev => {
+      if (!prev || prev.id !== currentChat.id) return prev;
+      return {
+        ...prev,
+        messages: [...prev.messages, optimisticMessage]
+      };
+    });
+
+    if (!token) throw new Error('Not authenticated');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('chatId', currentChat.id);
+      formData.append('clientMessageId', clientMessageId);
+
+      const response = await axios.post(
+        '/api/message/upload',
+        formData,
+        {
+          baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      const serverMessage = response.data as Message;
+
+      // Update optimistic message with real message from server
+      setCurrentChat(prev => {
+        if (!prev || prev.id !== currentChat.id) return prev;
+        return {
+          ...prev,
+          messages: prev.messages.map(m => m.clientMessageId === clientMessageId ? serverMessage : m)
+        };
+      });
+
+      setChats(prev => prev.map(chat => {
+        if (chat.id !== currentChat.id) return chat;
+        const filtered = chat.messages.filter(m => m.clientMessageId !== clientMessageId);
+        return {
+          ...chat,
+          messages: [...filtered, serverMessage],
+          updatedAt: serverMessage.createdAt
+        };
+      }));
+
+      URL.revokeObjectURL(localUrl);
+      setError(null);
+      return serverMessage;
+    } catch (err) {
+      setCurrentChat(prev => {
+        if (!prev || prev.id !== currentChat.id) return prev;
+        return {
+          ...prev,
+          messages: prev.messages.filter(m => m.id !== clientMessageId)
+        };
+      });
+      URL.revokeObjectURL(localUrl);
+      setError('Failed to upload file');
+      throw err;
+    }
+  }, [token, isGuest, currentChat, user?.id]);
+
   const deleteChat = useCallback(async (chatId: string) => {
 
     if (!token) return;
@@ -547,7 +645,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token, isGuest, removeMessageFromState]);
 
   return (
-    <ChatContext.Provider value={{ chats, currentChat, users, usersLoading, isLoading, error, unreadCounts, fetchChats, fetchUsers, createChat, startDirectChat, selectChat, addMessage, deleteChat, deleteMessage, clearUnread }}>
+    <ChatContext.Provider value={{ chats, currentChat, users, usersLoading, isLoading, error, unreadCounts, fetchChats, fetchUsers, createChat, startDirectChat, selectChat, addMessage, uploadFile, deleteChat, deleteMessage, clearUnread }}>
       {children}
     </ChatContext.Provider>
   );

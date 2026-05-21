@@ -49,7 +49,9 @@ model Message {
   deletedForUserIds String[] @default([]) @db.ObjectId
   deletedForEveryone Boolean @default(false)
   deliveredAt DateTime?
-  seenAt      DateTime?
+  seenAt    DateTime?
+  fileUrl   String?
+  fileType  String? // "image" | "video" | "file"
 }
 
 model FriendRequest {

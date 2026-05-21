@@ -57,6 +57,11 @@ io.on('connection', (socket: Socket) => {
 
   // Register user
   socket.on('user:login', async (userId: string) => {
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      console.warn(`[Socket] user:login received invalid userId: ${userId}`);
+      return;
+    }
+
     activeUsers.set(userId, socket.id);
     visibleUsers.add(userId);
     socket.data.userId = userId;

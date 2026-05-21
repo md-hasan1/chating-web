@@ -23,7 +23,7 @@ interface IncomingCallData {
 export default function ChatPage() {
   const router = useRouter();
   const { user, isLoading: authLoading, isGuest, logout, updateName } = useAuth();
-  const { chats, currentChat, users, usersLoading, unreadCounts, fetchChats, fetchUsers, createChat, startDirectChat, selectChat, addMessage, deleteChat, deleteMessage } = useChat();
+  const { chats, currentChat, users, usersLoading, unreadCounts, fetchChats, fetchUsers, createChat, startDirectChat, selectChat, addMessage, uploadFile, deleteChat, deleteMessage } = useChat();
   const { socket, onlineUsers, lastActiveTimes } = useSocket();
   const { friends, pendingRequests, sentRequests, isLoading: friendLoading, sendRequest, acceptRequest, rejectRequest } = useFriend();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
@@ -87,6 +87,19 @@ export default function ChatPage() {
       setIsSendingMessage(false);
     } catch (error) {
       console.error('Failed to send message:', error);
+      setIsSendingMessage(false);
+    }
+  };
+
+  const handleSendFile = async (file: File) => {
+    if (!currentChat) return;
+
+    setIsSendingMessage(true);
+    try {
+      await uploadFile(file);
+      setIsSendingMessage(false);
+    } catch (error) {
+      console.error('Failed to send file:', error);
       setIsSendingMessage(false);
     }
   };
@@ -189,6 +202,7 @@ export default function ChatPage() {
 
             <MessageInput
               onSend={handleSendMessage}
+              onSendFile={handleSendFile}
               isLoading={isSendingMessage}
             />
           </>
