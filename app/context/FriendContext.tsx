@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
 import { useAuth } from './AuthContext';
 import { useSocket } from './SocketContext';
 import { useToast } from './ToastContext';
+import { useAppDispatch } from '../store/hooks';
+import { api } from '../store/api';
 
 export interface FriendRequestUser {
   id: string;
@@ -41,6 +42,7 @@ interface FriendContextType {
 const FriendContext = createContext<FriendContextType | undefined>(undefined);
 
 export const FriendProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const dispatch = useAppDispatch();
   const { token, isGuest, user } = useAuth();
   const { socket } = useSocket();
   const { showToast } = useToast();
@@ -49,46 +51,41 @@ export const FriendProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [sentRequests, setSentRequests] = useState<FriendRequest[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-
   const fetchFriends = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get('/api/friend/list', {
-        baseURL: apiBase,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setFriends(res.data);
+      const queryResult = dispatch(api.endpoints.getFriends.initiate({ token }));
+      const data = await queryResult.unwrap();
+      queryResult.unsubscribe();
+      setFriends(data);
     } catch (err) {
       console.error('Error fetching friends:', err);
     }
-  }, [token, isGuest, apiBase]);
+  }, [dispatch, token, isGuest]);
 
   const fetchPending = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get('/api/friend/pending', {
-        baseURL: apiBase,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setPendingRequests(res.data);
+      const queryResult = dispatch(api.endpoints.getPendingRequests.initiate({ token }));
+      const data = await queryResult.unwrap();
+      queryResult.unsubscribe();
+      setPendingRequests(data);
     } catch (err) {
       console.error('Error fetching pending requests:', err);
     }
-  }, [token, isGuest, apiBase]);
+  }, [dispatch, token, isGuest]);
 
   const fetchSent = useCallback(async () => {
     if (!token) return;
     try {
-      const res = await axios.get('/api/friend/sent', {
-        baseURL: apiBase,
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setSentRequests(res.data);
+      const queryResult = dispatch(api.endpoints.getSentRequests.initiate({ token }));
+      const data = await queryResult.unwrap();
+      queryResult.unsubscribe();
+      setSentRequests(data);
     } catch (err) {
       console.error('Error fetching sent requests:', err);
     }
-  }, [token, isGuest, apiBase]);
+  }, [dispatch, token, isGuest]);
 
   const sendRequest = useCallback(async (targetUserId: string) => {
     if (!socket || !socket.connected) {

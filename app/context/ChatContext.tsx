@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import axios from 'axios';
 import { useAuth } from './AuthContext';
 import { useSocket } from './SocketContext';
 import { useToast } from './ToastContext';
+import { useAppDispatch } from '../store/hooks';
+import { api } from '../store/api';
 
 export interface Message {
   id: string;
@@ -40,6 +41,17 @@ export interface UserSummary {
   lastActiveAt?: string | null;
 }
 
+type MessageEnvelope = {
+  message?: Message;
+  chat?: Chat;
+};
+
+const isMessageEnvelope = (
+  value: Message | MessageEnvelope | null | undefined
+): value is MessageEnvelope => {
+  return !!value && typeof value === 'object' && 'message' in value;
+};
+
 interface ChatContextType {
   chats: Chat[];
   currentChat: Chat | null;
@@ -63,6 +75,7 @@ interface ChatContextType {
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const dispatch = useAppDispatch();
   const { token, isGuest, user } = useAuth();
   const { socket } = useSocket();
   const { showToast } = useToast();
@@ -92,11 +105,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setIsLoading(true);
     try {
-      const response = await axios.get('/api/chat', {
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const visibleChats = (response.data as Chat[]).filter(chat => chat.messages.length > 0);
+      const queryResult = dispatch(api.endpoints.getChats.initiate({ token }));
+      const data = await queryResult.unwrap();
+      queryResult.unsubscribe();
+      const visibleChats = (data as Chat[]).filter(chat => chat.messages.length > 0);
       setChats(visibleChats);
       setError(null);
     } catch (err) {
@@ -105,7 +117,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [token, isGuest]);
+  }, [dispatch, token, isGuest]);
 
   const fetchUsers = useCallback(async () => {
     if (!token) {
@@ -115,18 +127,16 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setUsersLoading(true);
     try {
-      const response = await axios.get('/api/users', {
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const fetchedUsers = response.data as UserSummary[];
+      const queryResult = dispatch(api.endpoints.getUsers.initiate({ token }));
+      const fetchedUsers = await queryResult.unwrap() as UserSummary[];
+      queryResult.unsubscribe();
       setUsers(user?.id ? fetchedUsers.filter(u => u.id !== user.id) : fetchedUsers);
     } catch (err) {
       console.error('Error fetching users:', err);
     } finally {
       setUsersLoading(false);
     }
-  }, [token, user?.id]);
+  }, [dispatch, token, user?.id]);
 
   const createChat = useCallback(async (title: string): Promise<Chat> => {
     const newChat: Chat = {
@@ -142,38 +152,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token) throw new Error('Not authenticated');
 
     try {
-      const response = await axios.post(
-        '/api/chat',
-        { title },
-        {
-          baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-      setChats([response.data, ...chats]);
+      const response = await dispatch(api.endpoints.createChat.initiate({ token, title })).unwrap();
+      setChats([response, ...chats]);
       setError(null);
-      return response.data;
+      return response;
     } catch (err) {
       setError('Failed to create chat');
       throw err;
     }
-  }, [token, isGuest, chats, user?.id]);
+  }, [dispatch, token, isGuest, chats, user?.id]);
 
   const startDirectChat = useCallback(async (targetUserId: string): Promise<Chat> => {
 
     if (!token) throw new Error('Not authenticated');
 
     try {
-      const response = await axios.post(
-        '/api/chat/direct',
-        { targetUserId },
-        {
-          baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-          headers: { Authorization: `Bearer ${token}` }
-        }
-      );
-
-      const chat = response.data as Chat;
+      const chat = await dispatch(api.endpoints.createDirectChat.initiate({ token, targetUserId })).unwrap() as Chat;
 
       setChats(prev => {
         if (chat.isDirect && chat.messages.length === 0) {
@@ -197,7 +191,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError('Failed to start direct chat');
       throw err;
     }
-  }, [token, isGuest]);
+  }, [dispatch, token, isGuest]);
 
   const clearUnread = useCallback((chatId: string) => {
     setUnreadCounts(prev => {
@@ -231,11 +225,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setIsLoading(true);
     try {
-      const response = await axios.get(`/api/chat/${chatId}`, {
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setCurrentChat(response.data);
+      const queryResult = dispatch(api.endpoints.getChatById.initiate({ token, chatId }));
+      const data = await queryResult.unwrap();
+      queryResult.unsubscribe();
+      setCurrentChat(data);
       setError(null);
     } catch (err) {
       setError('Failed to fetch chat');
@@ -243,7 +236,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [token, isGuest, clearUnread]);
+  }, [dispatch, token, isGuest, clearUnread]);
 
   // Join all user's chat rooms so we receive messages from every chat
   useEffect(() => {
@@ -264,9 +257,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!socket) return;
 
-    const handleMessageReceived = (payload: Message | { message?: Message; chat?: Chat } | null | undefined) => {
-      const message = payload && 'message' in payload ? payload.message : payload;
-      const incomingChat = payload && 'chat' in payload ? payload.chat : undefined;
+    const handleMessageReceived = (payload: Message | MessageEnvelope | null | undefined) => {
+      const message = isMessageEnvelope(payload) ? payload.message : payload;
+      const incomingChat = isMessageEnvelope(payload) ? payload.chat : undefined;
 
       if (!message || !message.userId) {
         return;
@@ -463,17 +456,15 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         // Fallback to HTTP if Socket.IO not available
-        const response = await axios.post(
-          '/api/message',
-          { content, chatId: currentChat.id, role },
-          {
-            baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
+        const response = await dispatch(api.endpoints.createMessage.initiate({
+          token,
+          content,
+          chatId: currentChat.id,
+          role,
+        })).unwrap();
 
         if (currentChat) {
-          const fallbackMessage = response.data as Message;
+          const fallbackMessage = response as Message;
           setCurrentChat({
             ...currentChat,
             messages: [...currentChat.messages, fallbackMessage]
@@ -506,7 +497,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError('Failed to send message');
       throw err;
     }
-  }, [token, isGuest, currentChat, socket, user?.id]);
+  }, [dispatch, token, isGuest, currentChat, socket, user?.id]);
 
   const uploadFile = useCallback(async (file: File): Promise<Message> => {
     if (!currentChat) throw new Error('No active chat');
@@ -548,24 +539,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!token) throw new Error('Not authenticated');
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('chatId', currentChat.id);
-      formData.append('clientMessageId', clientMessageId);
-
-      const response = await axios.post(
-        '/api/message/upload',
-        formData,
-        {
-          baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-          }
-        }
-      );
-
-      const serverMessage = response.data as Message;
+      const serverMessage = await dispatch(api.endpoints.uploadFile.initiate({
+        token,
+        file,
+        chatId: currentChat.id,
+        clientMessageId,
+      })).unwrap() as Message;
 
       // Update optimistic message with real message from server
       setCurrentChat(prev => {
@@ -590,6 +569,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError(null);
       return serverMessage;
     } catch (err) {
+      const errorMessage = typeof err === 'object' && err !== null
+        ? (((err as { data?: { error?: string; message?: string } }).data?.error ||
+          (err as { data?: { error?: string; message?: string } }).data?.message ||
+          (err as { error?: string }).error ||
+          (err as { message?: string }).message ||
+          'Failed to upload file'))
+        : (err instanceof Error ? err.message : 'Failed to upload file');
+
       setCurrentChat(prev => {
         if (!prev || prev.id !== currentChat.id) return prev;
         return {
@@ -598,10 +585,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       });
       URL.revokeObjectURL(localUrl);
-      setError('Failed to upload file');
+      setError(errorMessage);
+      showToast('Upload failed', errorMessage, 'error');
       throw err;
     }
-  }, [token, isGuest, currentChat, user?.id]);
+  }, [dispatch, token, isGuest, currentChat, user?.id, showToast]);
 
   const deleteChat = useCallback(async (chatId: string) => {
 
@@ -610,10 +598,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const chatToDelete = chats.find(chat => chat.id === chatId) || currentChat;
 
-      await axios.delete(`/api/chat/${chatId}`, {
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await dispatch(api.endpoints.deleteChat.initiate({ token, chatId })).unwrap();
 
       setChats(chats.filter(chat => chat.id !== chatId));
       if (currentChat?.id === chatId) {
@@ -624,25 +609,21 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setError('Failed to delete chat');
       console.error('Error deleting chat:', err);
     }
-  }, [token, isGuest, chats, currentChat]);
+  }, [dispatch, token, isGuest, chats, currentChat]);
 
   const deleteMessage = useCallback(async (messageId: string, scope: 'me' | 'everyone') => {
 
     if (!token) return;
 
     try {
-      await axios.delete(`/api/message/${messageId}`, {
-        baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
-        headers: { Authorization: `Bearer ${token}` },
-        params: { scope }
-      });
+      await dispatch(api.endpoints.deleteMessage.initiate({ token, messageId, scope })).unwrap();
 
       removeMessageFromState(messageId);
     } catch (err) {
       setError('Failed to delete message');
       console.error('Error deleting message:', err);
     }
-  }, [token, isGuest, removeMessageFromState]);
+  }, [dispatch, token, isGuest, removeMessageFromState]);
 
   return (
     <ChatContext.Provider value={{ chats, currentChat, users, usersLoading, isLoading, error, unreadCounts, fetchChats, fetchUsers, createChat, startDirectChat, selectChat, addMessage, uploadFile, deleteChat, deleteMessage, clearUnread }}>

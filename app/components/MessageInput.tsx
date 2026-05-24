@@ -6,15 +6,18 @@ interface MessageInputProps {
   onSend: (message: string) => void;
   onSendFile: (file: File) => Promise<void>;
   isLoading?: boolean;
+  onTypingStart?: () => void;
+  onTypingStop?: () => void;
 }
 
-export default function MessageInput({ onSend, onSendFile, isLoading }: MessageInputProps) {
+export default function MessageInput({ onSend, onSendFile, isLoading, onTypingStart, onTypingStop }: MessageInputProps) {
   const [message, setMessage] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (message.trim() && !isLoading && !isUploading) {
+      onTypingStop?.();
       onSend(message);
       setMessage('');
     }
@@ -76,6 +79,7 @@ export default function MessageInput({ onSend, onSendFile, isLoading }: MessageI
         >
           <input
             type="file"
+            accept="image/*,video/*"
             disabled={isInputDisabled}
             onChange={handleFileChange}
             style={{ display: 'none' }}
@@ -93,7 +97,16 @@ export default function MessageInput({ onSend, onSendFile, isLoading }: MessageI
         <input
           type="text"
           value={message}
-          onChange={(e) => setMessage(e.target.value)}
+          onChange={(e) => {
+            const nextValue = e.target.value;
+            setMessage(nextValue);
+
+            if (nextValue.trim()) {
+              onTypingStart?.();
+            } else {
+              onTypingStop?.();
+            }
+          }}
           placeholder="Type a message..."
           disabled={isInputDisabled}
           style={{

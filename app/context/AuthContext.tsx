@@ -1,7 +1,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import axios from 'axios';
+import { useAppDispatch } from '../store/hooks';
+import { api } from '../store/api';
 
 interface User {
   id: string;
@@ -48,14 +49,11 @@ const eraseCookie = (name: string) => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const dispatch = useAppDispatch();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(false);
-
-  const apiClient = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-  });
 
   const checkAuth = useCallback(async () => {
     try {
@@ -82,12 +80,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         eraseCookie('guestMode');
       }
 
-      const response = await apiClient.get('/api/auth/me', {
-        headers: { Authorization: `Bearer ${storedToken}` }
-      });
+      const queryResult = dispatch(api.endpoints.authMe.initiate({ token: storedToken }));
+      const me = await queryResult.unwrap();
+      queryResult.unsubscribe();
 
       setToken(storedToken);
-      setUser({ ...response.data, isGuest: guestMode === 'true' });
+      setUser({ ...me, isGuest: guestMode === 'true' });
       setIsGuest(guestMode === 'true');
     } catch (error) {
       localStorage.removeItem('token');
@@ -104,14 +102,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, name: string, googleId: string, image: string) => {
     try {
-      const response = await apiClient.post('/api/auth/google-login', {
+      const response = await dispatch(api.endpoints.googleLogin.initiate({
         email,
         name,
         googleId,
         image
-      });
+      })).unwrap();
 
-      const { user: userData, token: newToken } = response.data;
+      const { user: userData, token: newToken } = response;
       setUser(userData);
       setToken(newToken);
       setIsGuest(false);
@@ -123,12 +121,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Login failed:', error);
       throw error;
     }
-  }, []);
+  }, [dispatch]);
 
   const loginAsGuest = useCallback(async () => {
     try {
-      const response = await apiClient.post('/api/auth/guest-login');
-      const { user: userData, token: newToken } = response.data;
+      const response = await dispatch(api.endpoints.guestLogin.initiate()).unwrap();
+      const { user: userData, token: newToken } = response;
 
       setUser({ ...userData, isGuest: true });
       setToken(newToken);
@@ -141,12 +139,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Guest login failed:', error);
       throw error;
     }
-  }, []);
+  }, [dispatch]);
 
   const loginWithEmail = useCallback(async (email: string, password: string) => {
     try {
-      const response = await apiClient.post('/api/auth/login', { email, password });
-      const { user: userData, token: newToken } = response.data;
+      const response = await dispatch(api.endpoints.emailLogin.initiate({ email, password })).unwrap();
+      const { user: userData, token: newToken } = response;
       setUser(userData);
       setToken(newToken);
       setIsGuest(false);
@@ -158,12 +156,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Email login failed:', error);
       throw error;
     }
-  }, []);
+  }, [dispatch]);
 
   const registerWithEmail = useCallback(async (email: string, password: string, name: string) => {
     try {
-      const response = await apiClient.post('/api/auth/register', { email, password, name });
-      const { user: userData, token: newToken } = response.data;
+      const response = await dispatch(api.endpoints.register.initiate({ email, password, name })).unwrap();
+      const { user: userData, token: newToken } = response;
       setUser(userData);
       setToken(newToken);
       setIsGuest(false);
@@ -175,7 +173,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Email registration failed:', error);
       throw error;
     }
-  }, []);
+  }, [dispatch]);
 
   const logout = useCallback(() => {
     setUser(null);
@@ -190,15 +188,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateName = useCallback(async (newName: string) => {
     if (!token) return;
     try {
-      const response = await apiClient.put('/api/users/profile', { name: newName }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setUser(prev => prev ? { ...prev, name: response.data.name } : null);
+      const response = await dispatch(api.endpoints.updateProfile.initiate({ token, name: newName })).unwrap();
+      setUser(prev => prev ? { ...prev, name: response.name } : null);
     } catch (error) {
       console.error('Failed to update name:', error);
       throw error;
     }
-  }, [token]);
+  }, [dispatch, token]);
 
   useEffect(() => {
     checkAuth();

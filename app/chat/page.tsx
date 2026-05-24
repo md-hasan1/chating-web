@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/context/AuthContext';
 import { useChat } from '@/app/context/ChatContext';
@@ -18,6 +18,7 @@ interface IncomingCallData {
   callerId: string;
   callerName: string;
   callerSocketId: string;
+  callType: 'audio' | 'video';
 }
 
 export default function ChatPage() {
@@ -28,8 +29,11 @@ export default function ChatPage() {
   const { friends, pendingRequests, sentRequests, isLoading: friendLoading, sendRequest, acceptRequest, rejectRequest } = useFriend();
   const [isCreatingChat, setIsCreatingChat] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
-  const [ongoingCall, setOngoingCall] = useState<{ callId: string; targetUserId: string; targetUserName: string; isIncoming: boolean } | null>(null);
+  const [ongoingCall, setOngoingCall] = useState<{ callId: string; targetUserId: string; targetUserName: string; isIncoming: boolean; callType: 'audio' | 'video' } | null>(null);
   const [incomingCall, setIncomingCall] = useState<IncomingCallData | null>(null);
+  const [typingUsersByChat, setTypingUsersByChat] = useState<Record<string, Record<string, string>>>({});
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -49,16 +53,33 @@ export default function ChatPage() {
     }
   }, [user, fetchUsers]);
 
+  const ongoingCallRef = useRef(ongoingCall);
+  useEffect(() => {
+    ongoingCallRef.current = ongoingCall;
+  }, [ongoingCall]);
+
   // Listen for incoming calls
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('call:incoming', (data: IncomingCallData) => {
+    const handleCallIncoming = (data: IncomingCallData) => {
+      if (ongoingCallRef.current) {
+        socket.emit('call:rejected', { callId: data.callId, targetSocketId: data.callerSocketId, message: 'User busy' });
+        return;
+      }
       setIncomingCall(data);
-    });
+    };
+
+    const handleCallEnded = () => {
+      setIncomingCall(null);
+    };
+
+    socket.on('call:incoming', handleCallIncoming);
+    socket.on('call:ended', handleCallEnded);
 
     return () => {
-      socket.off('call:incoming');
+      socket.off('call:incoming', handleCallIncoming);
+      socket.off('call:ended', handleCallEnded);
     };
   }, [socket]);
 
@@ -81,6 +102,15 @@ export default function ChatPage() {
   const handleSendMessage = async (content: string) => {
     if (!currentChat) return;
 
+    if (socket && socket.connected) {
+      socket.emit('typing:stop', { chatId: currentChat.id });
+    }
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+
     setIsSendingMessage(true);
     try {
       await addMessage(content, 'user');
@@ -93,6 +123,15 @@ export default function ChatPage() {
 
   const handleSendFile = async (file: File) => {
     if (!currentChat) return;
+
+    if (socket && socket.connected) {
+      socket.emit('typing:stop', { chatId: currentChat.id });
+    }
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
 
     setIsSendingMessage(true);
     try {
@@ -114,6 +153,20 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to start direct chat:', error);
     }
+  };
+
+  const handleStartCall = (type: 'audio' | 'video') => {
+    const otherUser = getOtherUser();
+    if (!otherUser) return;
+
+    const callId = `call-${Date.now()}`;
+    setOngoingCall({
+      callId,
+      targetUserId: otherUser.id,
+      targetUserName: otherUser.name || otherUser.email || 'Someone',
+      isIncoming: false,
+      callType: type
+    });
   };
 
   const getCurrentChatTitle = () => {
@@ -139,6 +192,106 @@ export default function ChatPage() {
     router.push('/auth');
   };
 
+  const handleTypingStart = () => {
+    if (!currentChat || !socket || !socket.connected) return;
+
+    if (!isTypingRef.current) {
+      socket.emit('typing:start', {
+        chatId: currentChat.id,
+        userName: user?.name || user?.email || 'Someone'
+      });
+      isTypingRef.current = true;
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (!currentChat || !socket || !socket.connected) return;
+      socket.emit('typing:stop', { chatId: currentChat.id });
+      isTypingRef.current = false;
+      typingTimeoutRef.current = null;
+    }, 1200);
+  };
+
+  const handleTypingStop = () => {
+    if (!currentChat || !socket || !socket.connected) return;
+    socket.emit('typing:stop', { chatId: currentChat.id });
+    isTypingRef.current = false;
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  };
+
+  const currentTypingUsers = currentChat
+    ? Object.values(typingUsersByChat[currentChat.id] || {})
+    : [];
+
+  const isOtherUserTyping = currentTypingUsers.length > 0;
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleTypingStarted = (data: { chatId: string; userId: string; userName?: string }) => {
+      if (!data.chatId || !data.userId || data.userId === user?.id) return;
+
+      setTypingUsersByChat(prev => ({
+        ...prev,
+        [data.chatId]: {
+          ...(prev[data.chatId] || {}),
+          [data.userId]: data.userName || 'Someone'
+        }
+      }));
+    };
+
+    const handleTypingStopped = (data: { chatId: string; userId: string }) => {
+      if (!data.chatId || !data.userId) return;
+
+      setTypingUsersByChat(prev => {
+        const chatTyping = prev[data.chatId];
+        if (!chatTyping || !chatTyping[data.userId]) return prev;
+
+        const updatedChatTyping = { ...chatTyping };
+        delete updatedChatTyping[data.userId];
+
+        if (Object.keys(updatedChatTyping).length === 0) {
+          const next = { ...prev };
+          delete next[data.chatId];
+          return next;
+        }
+
+        return {
+          ...prev,
+          [data.chatId]: updatedChatTyping
+        };
+      });
+    };
+
+    socket.on('typing:started', handleTypingStarted);
+    socket.on('typing:stopped', handleTypingStopped);
+
+    return () => {
+      socket.off('typing:started', handleTypingStarted);
+      socket.off('typing:stopped', handleTypingStopped);
+    };
+  }, [socket, user?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!socket || !socket.connected || !currentChat) return;
+
+    handleTypingStop();
+  }, [currentChat?.id]);
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -157,6 +310,7 @@ export default function ChatPage() {
         chats={chats}
         currentChatId={currentChat?.id || null}
         currentUserId={user.id}
+        typingUsersByChat={typingUsersByChat}
         users={users}
         onlineUserIds={onlineUsers}
         lastActiveTimes={lastActiveTimes}
@@ -180,16 +334,46 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col">
         {currentChat ? (
           <>
-            <div className="bg-white border-b p-4 shadow-sm flex flex-col">
-              <h1 className="text-2xl font-bold text-gray-800">{getCurrentChatTitle()}</h1>
-              {getOtherUser() ? (
-                <p className={`text-sm ${onlineUsers.has(getOtherUser()!.id) ? 'text-green-500 font-medium' : 'text-gray-500'}`}>
-                  {onlineUsers.has(getOtherUser()!.id) 
-                    ? 'Online' 
-                    : `Last active ${formatLastActive(lastActiveTimes[getOtherUser()!.id] || getOtherUser()!.lastActiveAt)}`}
-                </p>
-              ) : (
-                <p className="text-sm text-gray-500">Chat ID: {currentChat.id}</p>
+            <div className="bg-white border-b p-4 shadow-sm flex items-center justify-between">
+              <div className="flex flex-col">
+                <h1 className="text-2xl font-bold text-gray-800">{getCurrentChatTitle()}</h1>
+                {getOtherUser() ? (
+                  <p className={`text-sm ${onlineUsers.has(getOtherUser()!.id) ? 'text-green-500 font-medium' : 'text-gray-500'}`}>
+                    {onlineUsers.has(getOtherUser()!.id) 
+                      ? 'Online' 
+                      : `Last active ${formatLastActive(lastActiveTimes[getOtherUser()!.id] || getOtherUser()!.lastActiveAt)}`}
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-500">Chat ID: {currentChat.id}</p>
+                )}
+                {isOtherUserTyping && (
+                  <p className="text-xs text-blue-500 mt-1">typing...</p>
+                )}
+              </div>
+
+              {/* Call Buttons (Only for Direct Chats) */}
+              {getOtherUser() && (
+                <div className="flex items-center space-x-3 mr-2">
+                  <button
+                    onClick={() => handleStartCall('audio')}
+                    className="p-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition-colors cursor-pointer border border-slate-200/50"
+                    title="Start voice call"
+                  >
+                    <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </button>
+
+                  <button
+                    onClick={() => handleStartCall('video')}
+                    className="p-2.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 hover:text-indigo-800 transition-colors cursor-pointer border border-indigo-100"
+                    title="Start video call"
+                  >
+                    <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
               )}
             </div>
 
@@ -198,12 +382,15 @@ export default function ChatPage() {
               isLoading={isSendingMessage}
               currentUserId={user.id}
               onDeleteMessage={handleDeleteMessage}
+              showTypingIndicator={isOtherUserTyping}
             />
 
             <MessageInput
               onSend={handleSendMessage}
               onSendFile={handleSendFile}
               isLoading={isSendingMessage}
+              onTypingStart={handleTypingStart}
+              onTypingStop={handleTypingStop}
             />
           </>
         ) : (
@@ -229,6 +416,40 @@ export default function ChatPage() {
           </div>
         )}
       </div>
+
+      {incomingCall && (
+        <IncomingCall
+          callerName={incomingCall.callerName}
+          callType={incomingCall.callType}
+          onAccept={() => {
+            const callId = incomingCall.callId;
+            socket?.emit('call:accepted', { callId, targetSocketId: incomingCall.callerSocketId });
+            setOngoingCall({
+              callId,
+              targetUserId: incomingCall.callerId,
+              targetUserName: incomingCall.callerName,
+              isIncoming: true,
+              callType: incomingCall.callType
+            });
+            setIncomingCall(null);
+          }}
+          onReject={() => {
+            socket?.emit('call:rejected', { callId: incomingCall.callId, targetSocketId: incomingCall.callerSocketId });
+            setIncomingCall(null);
+          }}
+        />
+      )}
+
+      {ongoingCall && (
+        <VideoCall
+          callId={ongoingCall.callId}
+          targetUserId={ongoingCall.targetUserId}
+          targetUserName={ongoingCall.targetUserName}
+          isIncoming={ongoingCall.isIncoming}
+          callType={ongoingCall.callType}
+          onEnd={() => setOngoingCall(null)}
+        />
+      )}
     </div>
   );
 }

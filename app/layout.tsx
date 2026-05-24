@@ -6,6 +6,7 @@ import { SocketProvider } from "./context/SocketContext";
 import { FriendProvider } from "./context/FriendContext";
 import { ChatProvider } from "./context/ChatContext";
 import { ToastProvider } from "./context/ToastContext";
+import ReduxProvider from "./store/ReduxProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,17 +35,19 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
-        <AuthProvider>
-          <ToastProvider>
-            <SocketProvider>
-              <FriendProvider>
-                <ChatProvider>
-                  {children}
-                </ChatProvider>
-              </FriendProvider>
-            </SocketProvider>
-          </ToastProvider>
-        </AuthProvider>
+        <ReduxProvider>
+          <AuthProvider>
+            <ToastProvider>
+              <SocketProvider>
+                <FriendProvider>
+                  <ChatProvider>
+                    {children}
+                  </ChatProvider>
+                </FriendProvider>
+              </SocketProvider>
+            </ToastProvider>
+          </AuthProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

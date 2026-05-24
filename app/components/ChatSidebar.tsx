@@ -9,6 +9,7 @@ interface ChatSidebarProps {
   chats: Chat[];
   currentChatId: string | null;
   currentUserId?: string;
+  typingUsersByChat?: Record<string, Record<string, string>>;
   users: UserSummary[];
   onlineUserIds: Set<string>;
   lastActiveTimes: Record<string, string>;
@@ -35,6 +36,7 @@ export default function ChatSidebar({
   chats,
   currentChatId,
   currentUserId,
+  typingUsersByChat,
   users,
   onlineUserIds,
   lastActiveTimes,
@@ -164,6 +166,7 @@ export default function ChatSidebar({
                 const lastMessage = chat.messages.length > 0
                   ? chat.messages[chat.messages.length - 1]
                   : null;
+                const isTyping = !!typingUsersByChat?.[chat.id] && Object.keys(typingUsersByChat[chat.id]).length > 0;
                 const unread = unreadCounts[chat.id] || 0;
                 const isOnline = isOtherUserOnline(chat);
                 const otherUser = getDirectChatOtherUser(chat);
@@ -229,8 +232,8 @@ export default function ChatSidebar({
                             )}
                           </div>
                         </div>
-                        <p className={`text-xs truncate mt-1 ${unread > 0 ? 'text-gray-200 font-semibold' : 'text-gray-400'}`}>
-                          {lastMessage ? lastMessage.content : 'No messages'}
+                        <p className={`text-xs truncate mt-1 ${isTyping ? 'text-blue-400 font-semibold' : unread > 0 ? 'text-gray-200 font-semibold' : 'text-gray-400'}`}>
+                          {isTyping ? 'typing...' : (lastMessage ? lastMessage.content : 'No messages')}
                         </p>
                       </div>
                     </button>
