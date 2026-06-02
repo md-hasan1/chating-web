@@ -19,7 +19,7 @@ npm run setup
 Create `.env.local` in root:
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:8888
 ```
 
 Create `server/.env`:
@@ -27,7 +27,7 @@ Create `server/.env`:
 DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/chat-db
 JWT_SECRET=your-secret-key
 NODE_ENV=development
-PORT=5000
+PORT=8888
 FRONTEND_URL=http://localhost:3000
 ```
 
@@ -38,7 +38,7 @@ npm run dev
 
 This runs both:
 - Frontend on [http://localhost:3000](http://localhost:3000)
-- Backend on [http://localhost:5000](http://localhost:5000)
+- Backend on [http://localhost:8888](http://localhost:8888)
 
 ### Development Commands
 

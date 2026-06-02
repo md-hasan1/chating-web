@@ -12,14 +12,14 @@ npm run setup
 **Create `.env.local` (in root):**
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:8888
 ```
 
 **Create `server/.env`:**
 ```
 DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/chat-db
 JWT_SECRET=any-random-string
-PORT=5000
+PORT=8888
 ```
 
 ### Step 3: Start Both Servers
@@ -28,7 +28,7 @@ npm run dev
 ```
 
 Frontend: http://localhost:3000
-Backend: http://localhost:5000
+Backend: http://localhost:8888
 
 ### Step 4: Test It
 - Open http://localhost:3000
@@ -65,7 +65,7 @@ npm run build:backend      # Build backend
 |-------|----------|
 | Google login fails | Check `NEXT_PUBLIC_GOOGLE_CLIENT_ID` in `.env.local` |
 | Cannot connect to DB | Check `DATABASE_URL` in `server/.env` and MongoDB whitelist |
-| Port 5000 in use | Change `PORT=5001` in `server/.env` + update `NEXT_PUBLIC_API_URL` |
+| Port 8888 in use | Change `PORT=8889` in `server/.env` + update `NEXT_PUBLIC_API_URL` |
 | CORS error | Ensure backend `FRONTEND_URL` matches frontend URL |
 
 ## What's Running
@@ -73,8 +73,8 @@ npm run build:backend      # Build backend
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
-| Backend | http://localhost:5000 |
-| API Health | http://localhost:5000/health |
+| Backend | http://localhost:8888 |
+| API Health | http://localhost:8888/health |
 
 ## Next Steps
 

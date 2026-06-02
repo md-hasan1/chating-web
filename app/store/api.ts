@@ -25,7 +25,7 @@ type RegisterArg = { email: string; password: string; name: string };
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8888',
   }),
   tagTypes: ['Auth', 'Chat', 'Users', 'Friend', 'Message'],
   endpoints: (builder) => ({

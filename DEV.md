@@ -21,7 +21,7 @@ npm run dev
 
 This will start:
 - **Frontend**: Next.js dev server on `http://localhost:3000`
-- **Backend**: Express server on `http://localhost:5000`
+- **Backend**: Express server on `http://localhost:8888`
 
 Both servers will run in the same terminal with color-coded output.
 
@@ -54,7 +54,7 @@ npm run start:backend  # Start backend
 ### Frontend (.env.local)
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:8888
 ```
 
 ### Backend (server/.env)
@@ -62,7 +62,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/chat-db
 JWT_SECRET=your-secret-key
 NODE_ENV=development
-PORT=5000
+PORT=8888
 FRONTEND_URL=http://localhost:3000
 ```
 
@@ -77,7 +77,7 @@ FRONTEND_URL=http://localhost:3000
 ## Troubleshooting
 
 ### Port Already in Use
-If port 5000 is in use:
+If port 8888 is in use:
 - Change `PORT=5001` in `server/.env`
 - Update `NEXT_PUBLIC_API_URL=http://localhost:5001` in `.env.local`
 
@@ -96,8 +96,8 @@ npm run dev:backend
 | Component | URL | Tech |
 |-----------|-----|------|
 | Frontend | http://localhost:3000 | Next.js + React |
-| Backend API | http://localhost:5000 | Express + Node.js |
-| API Health | http://localhost:5000/health | Express endpoint |
+| Backend API | http://localhost:8888 | Express + Node.js |
+| API Health | http://localhost:8888/health | Express endpoint |
 | Database | MongoDB Atlas | Cloud hosted |
 
 ## IDE Tips

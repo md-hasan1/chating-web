@@ -92,7 +92,7 @@ npm install
 
 # Create .env.local (already created, update values)
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:8888
 
 # Run development server
 npm run dev
@@ -115,7 +115,7 @@ cp .env.example .env
 # Update .env with your values:
 DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/chat-db
 JWT_SECRET=your-super-secret-key
-PORT=5000
+PORT=8888
 FRONTEND_URL=http://localhost:3000
 
 # Generate Prisma client
@@ -128,7 +128,7 @@ npm run prisma:migrate
 npm run dev
 ```
 
-Backend will be available at `http://localhost:5000`
+Backend will be available at `http://localhost:8888`
 
 ## API Endpoints
 
@@ -175,7 +175,7 @@ Backend will be available at `http://localhost:5000`
 ### Frontend (.env.local)
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:5000
+NEXT_PUBLIC_API_URL=http://localhost:8888
 ```
 
 ### Backend (server/.env)
@@ -183,7 +183,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 DATABASE_URL=mongodb+srv://username:password@cluster.mongodb.net/chat-db
 JWT_SECRET=your-secret-key
 NODE_ENV=development
-PORT=5000
+PORT=8888
 FRONTEND_URL=http://localhost:3000
 ```
 
