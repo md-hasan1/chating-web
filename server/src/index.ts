@@ -1,4 +1,4 @@
-import express, { Express, NextFunction, Request, Response } from 'express';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -30,49 +30,27 @@ for (const envFile of envFiles) {
 
 const app: Express = express();
 const port = process.env.PORT || 8888;
-const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'https://chat.smtsigma.com')
-  .split(',')
-  .map((origin) => origin.trim())
-  .filter(Boolean);
-const allowedOriginSet = new Set(allowedOrigins);
-
 const corsOptions = {
-  origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
-    if (!origin) {
-      callback(null, true);
-      return;
-    }
-
-    if (allowedOriginSet.has(origin)) {
-      callback(null, true);
-      return;
-    }
-
-    callback(new Error(`CORS blocked for origin: ${origin}`));
-  },
+  origin: [
+    'http://localhost:3001',
+    'http://localhost:3000',
+    'http://localhost:8887',
+    'https://chat.smtsigma.com',
+    'https://api.chat.smtsigma.com'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'X-Requested-With',
+    'Origin',
+    'Cache-Control',
+    'X-CSRF-Token',
+    'User-Agent',
+    'Content-Length'
+  ],
   credentials: true
-};
-
-const applyCorsHeaders = (req: Request, res: Response, next: NextFunction) => {
-  const origin = req.headers.origin;
-
-  if (origin && allowedOriginSet.has(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Vary', 'Origin');
-  }
-
-  if (req.method === 'OPTIONS') {
-    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-    res.header(
-      'Access-Control-Allow-Headers',
-      req.headers['access-control-request-headers'] || 'Content-Type, Authorization'
-    );
-    res.sendStatus(204);
-    return;
-  }
-
-  next();
 };
 
 // Create HTTP server with Socket.IO
@@ -82,10 +60,10 @@ export const io = new Server(httpServer, {
 });
 
 // Middleware
-app.use(applyCorsHeaders);
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Routes (mounted under /api)
 app.use('/api', appRoutes);
