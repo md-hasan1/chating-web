@@ -1,4 +1,4 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
@@ -37,6 +37,28 @@ const corsOptions = {
   credentials: true
 };
 
+const applyCorsHeaders = (req: Request, res: Response, next: NextFunction) => {
+  const origin = req.headers.origin;
+
+  if (origin && allowedOriginSet.has(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
+    res.header(
+      'Access-Control-Allow-Headers',
+      req.headers['access-control-request-headers'] || 'Content-Type, Authorization'
+    );
+    res.sendStatus(204);
+    return;
+  }
+
+  next();
+};
+
 // Create HTTP server with Socket.IO
 const httpServer = createServer(app);
 export const io = new Server(httpServer, {
@@ -44,12 +66,10 @@ export const io = new Server(httpServer, {
 });
 
 // Middleware
+app.use(applyCorsHeaders);
 app.use(cors(corsOptions));
 app.options('*', cors(corsOptions));
 app.use(express.json());
-
-// Global error handler for Express
-app.use(GlobalErrorHandler);
 
 // Routes (mounted under /api)
 app.use('/api', appRoutes);
@@ -58,6 +78,13 @@ app.use('/api', appRoutes);
 app.get('/health', (req: Request, res: Response) => {
   res.json({ status: 'ok' });
 });
+
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok' });
+});
+
+// Global error handler for Express
+app.use(GlobalErrorHandler);
 
 // Socket.IO shared state
 import { activeUsers } from './app/socket/state';
