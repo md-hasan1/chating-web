@@ -1,6 +1,7 @@
 import express, { Express, NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import GlobalErrorHandler from './app/middlewares/globalErrorHandler';
@@ -11,6 +12,21 @@ import { registerCallHandlers } from './app/socket/callHandlers';
 import { registerFriendHandlers } from './app/socket/friendHandlers';
 
 dotenv.config();
+
+const envFiles = [
+  path.resolve(process.cwd(), '.env'),
+  path.resolve(process.cwd(), '.env.local'),
+  path.resolve(process.cwd(), 'server/.env'),
+  path.resolve(process.cwd(), 'server/.env.local'),
+  path.resolve(process.cwd(), '../.env'),
+  path.resolve(process.cwd(), '../.env.local'),
+  path.resolve(process.cwd(), '../server/.env'),
+  path.resolve(process.cwd(), '../server/.env.local')
+];
+
+for (const envFile of envFiles) {
+  dotenv.config({ path: envFile });
+}
 
 const app: Express = express();
 const port = process.env.PORT || 8888;
