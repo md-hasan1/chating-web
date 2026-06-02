@@ -18,21 +18,34 @@ const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || '
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOriginSet = new Set(allowedOrigins);
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+
+    if (allowedOriginSet.has(origin)) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true
+};
 
 // Create HTTP server with Socket.IO
 const httpServer = createServer(app);
 export const io = new Server(httpServer, {
-  cors: {
-    origin: allowedOrigins,
-    credentials: true
-  }
+  cors: corsOptions
 });
 
 // Middleware
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
-}));
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Global error handler for Express
