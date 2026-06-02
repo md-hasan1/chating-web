@@ -36,10 +36,13 @@ const corsOptions = {
     'http://localhost:3000',
     'http://localhost:8887',
     'https://chat.smtsigma.com',
+    'http://chat.smtsigma.com',
+    'http://api.chat.smtsigma.com',
     'https://api.chat.smtsigma.com'
   ],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
+    'Access-Control-Allow-Origin',
     'Content-Type',
     'Authorization',
     'Accept',
