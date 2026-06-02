@@ -15,19 +15,23 @@ dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 8888;
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:8887')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // Create HTTP server with Socket.IO
 const httpServer = createServer(app);
 export const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true
   }
 });
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true
 }));
 app.use(express.json());
