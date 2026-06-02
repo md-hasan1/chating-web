@@ -23,7 +23,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     if (!user) return;
 
-    const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8888', {
+    const newSocket = io(process.env.NEXT_PUBLIC_API_URL || 'https://api.chat.smtsigma.com', {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

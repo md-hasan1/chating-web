@@ -12,7 +12,7 @@ npm run setup
 **Create `.env.local` (in root):**
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:8888
+NEXT_PUBLIC_API_URL=https://api.chat.smtsigma.com
 ```
 
 **Create `server/.env`:**
@@ -28,7 +28,7 @@ npm run dev
 ```
 
 Frontend: http://localhost:3000
-Backend: http://localhost:8888
+Backend: https://api.chat.smtsigma.com
 
 ### Step 4: Test It
 - Open http://localhost:3000
@@ -73,8 +73,8 @@ npm run build:backend      # Build backend
 | Service | URL |
 |---------|-----|
 | Frontend | http://localhost:3000 |
-| Backend | http://localhost:8888 |
-| API Health | http://localhost:8888/health |
+| Backend | https://api.chat.smtsigma.com |
+| API Health | https://api.chat.smtsigma.com/health |
 
 ## Next Steps
 

@@ -5,7 +5,6 @@ import { createServer } from 'http';
 import { Server, Socket } from 'socket.io';
 import GlobalErrorHandler from './app/middlewares/globalErrorHandler';
 import appRoutes from './app/routes';
-import { prisma } from './shared/prisma';
 import { registerUserHandlers } from './app/socket/userHandlers';
 import { registerChatHandlers } from './app/socket/chatHandlers';
 import { registerCallHandlers } from './app/socket/callHandlers';
@@ -15,7 +14,7 @@ dotenv.config();
 
 const app: Express = express();
 const port = process.env.PORT || 8888;
-const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'http://localhost:8887')
+const allowedOrigins = (process.env.CORS_ORIGIN || process.env.FRONTEND_URL || 'https://chat.smtsigma.com')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);

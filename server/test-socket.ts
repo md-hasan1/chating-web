@@ -14,8 +14,8 @@ async function run() {
 
   console.log(`Testing with User 1: ${user1.id} and User 2: ${user2.id}`);
 
-  const socket1 = io("http://localhost:8888");
-  const socket2 = io("http://localhost:8888");
+  const socket1 = io("https://api.chat.smtsigma.com");
+  const socket2 = io("https://api.chat.smtsigma.com");
 
   socket1.on("connect", () => {
     console.log("Socket 1 connected");

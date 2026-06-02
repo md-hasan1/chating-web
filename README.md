@@ -19,7 +19,7 @@ npm run setup
 Create `.env.local` in root:
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:8888
+NEXT_PUBLIC_API_URL=https://api.chat.smtsigma.com
 ```
 
 Create `server/.env`:
@@ -38,7 +38,7 @@ npm run dev
 
 This runs both:
 - Frontend on [http://localhost:3000](http://localhost:3000)
-- Backend on [http://localhost:8888](http://localhost:8888)
+- Backend on [https://api.chat.smtsigma.com](https://api.chat.smtsigma.com)
 
 ### Development Commands
 

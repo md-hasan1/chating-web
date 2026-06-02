@@ -92,7 +92,7 @@ npm install
 
 # Create .env.local (already created, update values)
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:8888
+NEXT_PUBLIC_API_URL=https://api.chat.smtsigma.com
 
 # Run development server
 npm run dev
@@ -128,7 +128,7 @@ npm run prisma:migrate
 npm run dev
 ```
 
-Backend will be available at `http://localhost:8888`
+Backend will be available at `https://api.chat.smtsigma.com`
 
 ## API Endpoints
 
@@ -175,7 +175,7 @@ Backend will be available at `http://localhost:8888`
 ### Frontend (.env.local)
 ```
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
-NEXT_PUBLIC_API_URL=http://localhost:8888
+NEXT_PUBLIC_API_URL=https://api.chat.smtsigma.com
 ```
 
 ### Backend (server/.env)

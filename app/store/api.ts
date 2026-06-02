@@ -25,7 +25,7 @@ type RegisterArg = { email: string; password: string; name: string };
 export const api = createApi({
   reducerPath: 'api',
   baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8888',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.chat.smtsigma.com',
   }),
   tagTypes: ['Auth', 'Chat', 'Users', 'Friend', 'Message'],
   endpoints: (builder) => ({
