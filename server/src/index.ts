@@ -14,7 +14,7 @@ import { registerFriendHandlers } from './app/socket/friendHandlers';
 dotenv.config();
 
 const app: Express = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT ;
 
 // Create HTTP server with Socket.IO
 const httpServer = createServer(app);
